@@ -6,9 +6,31 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Check if patient is logged in
 if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'patient') {
+    $_SESSION['redirect_after_login'] = 'patient_chat.php';
     header("Location: patient_auth.php");
     exit;
 }
+
+// Get current patient's email
+$user_email = $_SESSION['user_email'];
+
+// Filter chats: Only show messages from this patient OR admin replies to this patient
+$filtered_chats = array_filter($_SESSION['chats'], function($msg) use ($user_email) {
+    // Patient sent it (their own message)
+    if ($msg['sender'] === 'patient' && isset($msg['sender_email']) && $msg['sender_email'] === $user_email) {
+        return true;
+    }
+    // Admin sent it TO this patient
+    if ($msg['sender'] === 'admin' && isset($msg['recipient']) && $msg['recipient'] === $user_email) {
+        return true;
+    }
+    return false;
+});
+
+// Sort chats by timestamp
+usort($filtered_chats, function($a, $b) {
+    return strtotime($a['timestamp'] ?? '') - strtotime($b['timestamp'] ?? '');
+});
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -97,7 +119,7 @@ if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'patient') {
             background-color: #035270 !important;
             color: white !important;
         }
-        .bubble-dentist {
+        .bubble-admin {
             background-color: #e9ecef !important;
             color: #212529 !important;
         }
@@ -294,20 +316,20 @@ if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'patient') {
                     </div>
                     
                     <div class="border rounded-3 p-4 bg-light mb-3 overflow-auto" style="height: 450px;" id="chatMessageWindow">
-                        <?php if (empty($_SESSION['chats'])): ?>
+                        <?php if (empty($filtered_chats)): ?>
                             <div class="text-center text-muted py-5 small">No chat history recorded.</div>
                         <?php else: ?>
-                            <?php foreach ($_SESSION['chats'] as $msg): ?>
+                            <?php foreach ($filtered_chats as $msg): ?>
                                 <?php $isPatient = (isset($msg['sender']) && $msg['sender'] === 'patient'); ?>
                                 <div class="mb-3 d-flex flex-column <?php echo $isPatient ? 'align-items-end' : 'align-items-start'; ?>">
                                     <span class="text-muted fw-bold mb-1" style="font-size: 11px;">
-                                        <?php echo htmlspecialchars($msg['sender_name']); ?>
-                                        <?php if (isset($msg['recipient'])): ?>
+                                        <?php echo $isPatient ? 'You' : htmlspecialchars($msg['sender_name']); ?>
+                                        <?php if (isset($msg['recipient']) && $msg['sender'] === 'admin'): ?>
                                             <span class="text-muted fw-normal">→ <?php echo htmlspecialchars($msg['recipient']); ?></span>
                                         <?php endif; ?>
                                     </span>
-                                    <div class="p-2 rounded-3 shadow-sm <?php echo $isPatient ? 'bubble-patient' : 'bubble-dentist'; ?>" style="max-width: 80%; font-size: 13px;">
-                                        <?php echo htmlspecialchars($msg['text']); ?>
+                                    <div class="p-2 rounded-3 shadow-sm <?php echo $isPatient ? 'bubble-patient' : 'bubble-admin'; ?>" style="max-width: 80%; font-size: 13px;">
+                                        <?php echo htmlspecialchars($msg['message_text']); ?>
                                     </div>
                                     <span class="text-muted mt-1" style="font-size: 9px;"><?php echo htmlspecialchars($msg['timestamp'] ?? ''); ?></span>
                                 </div>
@@ -336,11 +358,11 @@ if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'patient') {
                     <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body px-4 py-3 text-center">
-                    <p class="fw-bold mb-0 text-dark" style="font-size: 18px;">Are you sure you want to clear all chat history?</p>
+                    <p class="fw-bold mb-0 text-dark" style="font-size: 18px;">Are you sure you want to clear your chat history?</p>
                     <p class="text-danger-modal mt-2" style="font-size: 16px;">This action cannot be undone.</p>
                 </div>
                 <div class="modal-footer border-0 pb-4 px-4 pt-2 d-flex gap-3 justify-content-center">
-                    <a href="app_process.php?action=clear_chat" class="btn-modal-yes" style="text-decoration: none;">Yes</a>
+                    <a href="app_process.php?action=clear_patient_chat&patient=<?php echo urlencode($user_email); ?>" class="btn-modal-yes" style="text-decoration: none;">Yes</a>
                     <button type="button" class="btn-modal-no" data-bs-dismiss="modal">No</button>
                 </div>
             </div>

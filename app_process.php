@@ -54,7 +54,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['user_id'] = $patient_id;
             
             $conn->close();
-            header("Location: patient_auth.php?signup=success");
+            
+            // Check if there's a redirect URL
+            $redirect = isset($_SESSION['redirect_after_login']) ? $_SESSION['redirect_after_login'] : 'patient_home.php';
+            unset($_SESSION['redirect_after_login']);
+            header("Location: " . $redirect);
             exit;
         }
         $conn->close();
@@ -98,7 +102,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['user_display_name'] = $user_data['name'];
             $_SESSION['user_email'] = $email;
             $_SESSION['user_id'] = $user_data['id'];
-            header("Location: patient_home.php");
+            
+            // Check if there's a redirect URL
+            $redirect = isset($_SESSION['redirect_after_login']) ? $_SESSION['redirect_after_login'] : 'patient_home.php';
+            unset($_SESSION['redirect_after_login']);
+            header("Location: " . $redirect);
             exit;
         } else {
             header("Location: patient_auth.php?error=invalid");
@@ -106,32 +114,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if ($action === 'dentist_login') {
+    // ========== ADMIN LOGIN (replaces dentist_login) ==========
+    if ($action === 'admin_login') {
         $user_code = sanitize_input($_POST['user_code']);
         $password = $_POST['password'];
         
-        if (strcmp($user_code, '#dentist') === 0 && $password === '123') {
-            $_SESSION['user_role'] = 'dentist';
-            $_SESSION['user_display_name'] = "Dentist";
-            header("Location: dentist_tracking.php");
+        if (strcmp($user_code, '#admin') === 0 && $password === '123') {
+            $_SESSION['user_role'] = 'admin';
+            $_SESSION['user_display_name'] = "Admin";
+            
+            // Check if there's a redirect URL
+            $redirect = isset($_SESSION['redirect_after_login']) ? $_SESSION['redirect_after_login'] : 'admin_dashboard.php';
+            unset($_SESSION['redirect_after_login']);
+            header("Location: " . $redirect);
             exit;
         } else {
-            header("Location: dentist_login.php?error=auth");
-            exit;
-        }
-    }
-
-    if ($action === 'receptionist_login') {
-        $user_code = sanitize_input($_POST['user_code']);
-        $password = $_POST['password'];
-        
-        if (strcmp($user_code, '#frontdesk') === 0 && $password === '123') {
-            $_SESSION['user_role'] = 'receptionist';
-            $_SESSION['user_display_name'] = "Receptionist";
-            header("Location: receptionist_dashboard.php");
-            exit;
-        } else {
-            header("Location: receptionist_login.php?error=auth");
+            header("Location: admin_login.php?error=auth");
             exit;
         }
     }
@@ -230,12 +228,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    if ($action === 'dentist_send_message') {
+    // ========== ADMIN SEND MESSAGE (replaces dentist_send_message) ==========
+    if ($action === 'admin_send_message') {
         $text = sanitize_input($_POST['message_text']);
         $recipient = sanitize_input($_POST['recipient_email']);
         if (!empty($text)) {
             $conn = getDB();
-            $stmt = $conn->prepare("INSERT INTO chat_messages (sender, sender_email, sender_name, recipient, message_text, timestamp) VALUES ('dentist', 'dentist@dentflow.com', 'Dentist Desk Control Panel', ?, ?, NOW())");
+            $stmt = $conn->prepare("INSERT INTO chat_messages (sender, sender_email, sender_name, recipient, message_text, timestamp) VALUES ('admin', 'admin@dentflow.com', 'Admin', ?, ?, NOW())");
             $stmt->bind_param("ss", $recipient, $text);
             $stmt->execute();
             $stmt->close();
@@ -244,7 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Reload session data
             loadSessionFromDB();
         }
-        header("Location: dentist_chat.php");
+        header("Location: admin_chat.php");
         exit;
     }
 
@@ -286,7 +285,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'toggle_clinic') {
         $_SESSION['dentist_status'] = sanitize_input($_POST['is_open']);
-        header("Location: receptionist_dashboard.php");
+        header("Location: admin_dashboard.php");
         exit;
     }
 
@@ -310,7 +309,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Reload session data
         loadSessionFromDB();
         
-        header("Location: receptionist_dashboard.php");
+        header("Location: admin_dashboard.php");
         exit;
     }
 
@@ -335,7 +334,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Reload session data
         loadSessionFromDB();
         
-        header("Location: receptionist_dashboard.php");
+        header("Location: admin_dashboard.php");
         exit;
     }
 
@@ -346,7 +345,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $price = floatval($_POST['price'] ?? 0);
         
         if ($id == 0) {
-            header("Location: receptionist_dashboard.php?error=invalid_id");
+            header("Location: admin_dashboard.php?error=invalid_id");
             exit;
         }
         
@@ -379,13 +378,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $conn->close();
             // Reload session data
             loadSessionFromDB();
-            header("Location: receptionist_dashboard.php?success=updated");
+            header("Location: admin_dashboard.php?success=updated");
             exit;
         } else {
             $error = $stmt->error;
             $stmt->close();
             $conn->close();
-            header("Location: receptionist_dashboard.php?error=" . urlencode($error));
+            header("Location: admin_dashboard.php?error=" . urlencode($error));
             exit;
         }
     }
@@ -394,7 +393,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $item = sanitize_input($_POST['item']);
         
         if (empty($item)) {
-            header("Location: receptionist_dashboard.php?error=empty_item");
+            header("Location: admin_dashboard.php?error=empty_item");
             exit;
         }
         
@@ -408,13 +407,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Reload session data
         loadSessionFromDB();
         
-        header("Location: receptionist_dashboard.php?success=added");
+        header("Location: admin_dashboard.php?success=added");
         exit;
     }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
+    // ========== LOGOUT - Redirect to patient_auth.php ==========
     if ($action === 'logout') {
         $_SESSION = array();
         if (ini_get("session.use_cookies")) {
@@ -428,13 +428,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             session_destroy();
         }
         
+        // Redirect to patient login page
         header("Location: patient_auth.php");
         exit;
     }
 
     if ($action === 'set_status') {
         $_SESSION['dentist_status'] = $_GET['status'] === 'Open' ? 'Open' : 'Closed';
-        header("Location: dentist_tracking.php");
+        header("Location: admin_tracking.php");
         exit;
     }
 
@@ -458,7 +459,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         // Reload session data
         loadSessionFromDB();
         
-        header("Location: dentist_tracking.php");
+        header("Location: admin_tracking.php");
         exit;
     }
 
@@ -482,7 +483,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         // Reload session data
         loadSessionFromDB();
         
-        header("Location: dentist_tracking.php");
+        header("Location: admin_tracking.php");
         exit;
     }
 
@@ -509,7 +510,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         // Reload session data
         loadSessionFromDB();
         
-        header("Location: dentist_tracking.php");
+        header("Location: admin_tracking.php");
         exit;
     }
 
@@ -533,25 +534,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         // Reload session data
         loadSessionFromDB();
         
-        header("Location: dentist_tracking.php");
-        exit;
-    }
-
-    if ($action === 'update_stock') {
-        $id = intval($_GET['id']);
-        $status = sanitize_input($_GET['status']);
-        
-        $conn = getDB();
-        $stmt = $conn->prepare("UPDATE inventory SET status = ? WHERE id = ?");
-        $stmt->bind_param("si", $status, $id);
-        $stmt->execute();
-        $stmt->close();
-        $conn->close();
-        
-        // Reload session data
-        loadSessionFromDB();
-        
-        header("Location: dentist_inventory.php");
+        header("Location: admin_tracking.php");
         exit;
     }
 
@@ -583,7 +566,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $id = intval($_GET['id'] ?? 0);
         
         if ($id == 0) {
-            header("Location: receptionist_dashboard.php?error=invalid_id");
+            header("Location: admin_dashboard.php?error=invalid_id");
             exit;
         }
         
@@ -596,27 +579,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $conn->close();
             // Reload session data
             loadSessionFromDB();
-            header("Location: receptionist_dashboard.php?success=deleted");
+            header("Location: admin_dashboard.php?success=deleted");
             exit;
         } else {
             $error = $stmt->error;
             $stmt->close();
             $conn->close();
-            header("Location: receptionist_dashboard.php?error=" . urlencode($error));
+            header("Location: admin_dashboard.php?error=" . urlencode($error));
             exit;
         }
     }
 
+    // ========== CLEAR CHAT - Clear only selected patient (for admin) ==========
     if ($action === 'clear_chat') {
+        $patient_email = isset($_GET['patient']) ? sanitize_input($_GET['patient']) : '';
+        
         $conn = getDB();
-        $conn->query("DELETE FROM chat_messages");
+        
+        if (!empty($patient_email)) {
+            // Delete messages from this patient AND admin replies to this patient
+            $stmt = $conn->prepare("DELETE FROM chat_messages WHERE (sender = 'patient' AND sender_email = ?) OR (sender = 'admin' AND recipient = ?)");
+            $stmt->bind_param("ss", $patient_email, $patient_email);
+            $stmt->execute();
+            $stmt->close();
+        } else {
+            // Fallback: delete all if no patient specified
+            $conn->query("DELETE FROM chat_messages");
+        }
+        
         $conn->close();
         
         // Reload session data
         loadSessionFromDB();
         
-        header("Location: " . $_SERVER['HTTP_REFERER']);
+        // Redirect back to admin_chat.php with the patient parameter
+        if (!empty($patient_email)) {
+            header("Location: admin_chat.php?patient=" . urlencode($patient_email));
+        } else {
+            header("Location: admin_chat.php");
+        }
         exit;
+    }
+
+    // ========== CLEAR PATIENT CHAT - Clear only current patient's chat (for patient) ==========
+    if ($action === 'clear_patient_chat') {
+        $patient_email = isset($_GET['patient']) ? sanitize_input($_GET['patient']) : '';
+        
+        if (!empty($patient_email)) {
+            $conn = getDB();
+            
+            // Delete messages from this patient AND admin replies to this patient
+            $stmt = $conn->prepare("DELETE FROM chat_messages WHERE (sender = 'patient' AND sender_email = ?) OR (sender = 'admin' AND recipient = ?)");
+            $stmt->bind_param("ss", $patient_email, $patient_email);
+            $stmt->execute();
+            $stmt->close();
+            $conn->close();
+            
+            // Reload session data
+            loadSessionFromDB();
+            
+            // Redirect back to patient_chat.php
+            header("Location: patient_chat.php");
+            exit;
+        } else {
+            header("Location: patient_chat.php");
+            exit;
+        }
     }
 
     // ========== CLEAR OPERATIONS ==========

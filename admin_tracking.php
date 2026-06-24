@@ -4,9 +4,10 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Check if dentist is logged in
-if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'dentist') {
-    header("Location: dentist_login.php");
+// Check if admin is logged in
+if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
+    $_SESSION['redirect_after_login'] = 'admin_tracking.php';
+    header("Location: admin_login.php");
     exit;
 }
 
@@ -19,6 +20,12 @@ function getFullName($row) {
     if (!empty($row['suffix'])) $name_parts[] = $row['suffix'];
     return !empty($name_parts) ? implode(' ', $name_parts) : ($row['name'] ?? 'N/A');
 }
+
+// Get date filter
+$date_filter = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
+
+// Get filter type
+$filter_type = isset($_GET['filter']) ? $_GET['filter'] : 'today';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -77,16 +84,9 @@ function getFullName($row) {
                 border-bottom: 4px solid #dc3545;
                 color: #dc3545 !important;
             }
-            .text-warning-custom:hover {
-                border-bottom: 4px solid #ffc107;
-                color: #ffc107 !important;
-            }
         }
         .text-danger-custom {
             color: #dc3545;
-        }
-        .text-warning-custom {
-            color: #ffc107;
         }
         .nav-link.active {
             opacity: 1 !important;
@@ -307,41 +307,128 @@ function getFullName($row) {
         .action-buttons .btn {
             white-space: nowrap;
         }
-        .search-box {
-            position: relative;
-            width: 100%;
+
+        /* Filter Styles - Right Aligned */
+        .filter-container {
+            display: flex;
+            justify-content: flex-end;
             margin-bottom: 24px;
+            flex-wrap: wrap;
         }
-        .search-box .form-control {
-            padding-left: 56px !important;
-            border-radius: 10px !important;
+        .filter-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            background: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border: 1px solid #e9ecef;
+        }
+        .filter-box .quick-filters {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .filter-box .quick-filters .btn-quick {
+            background-color: #e9ecef;
+            color: #495057;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
+        }
+        .filter-box .quick-filters .btn-quick:hover {
+            background-color: #dee2e6;
+        }
+        .filter-box .quick-filters .btn-quick.active {
+            background-color: #212529;
+            color: white;
+        }
+        .filter-box .quick-filters .btn-quick.active:hover {
+            background-color: #1a1d20;
+        }
+        .filter-divider {
+            color: #dee2e6;
+            font-size: 18px;
+            padding: 0 4px;
+        }
+        .filter-box .date-input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .filter-box .date-input-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #495057;
+            margin: 0;
+        }
+        .filter-box .form-control {
+            padding: 6px 12px !important;
+            border-radius: 8px !important;
             border: 1px solid #ced4da !important;
-            height: 56px !important;
-            font-size: 18px !important;
+            height: 36px !important;
+            font-size: 14px !important;
             background-color: #ffffff !important;
             transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            width: 150px;
         }
-        .search-box .form-control:focus {
-            border-color: #4b5563 !important;
-            box-shadow: 0 0 0 0.25rem rgba(75, 85, 99, 0.25) !important;
+        .filter-box .form-control:focus {
+            border-color: #212529 !important;
+            box-shadow: 0 0 0 0.2rem rgba(33, 37, 41, 0.15) !important;
         }
-        .search-box .search-icon {
-            position: absolute;
-            left: 18px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #6c757d;
-            font-size: 22px;
-            pointer-events: none;
-        }
-        .search-wrapper {
-            width: 100%;
-        }
-        .search-wrapper .search-box {
-            max-width: 100%;
-        }
-        .patient-card-clickable {
+        .filter-box .btn-clear-filter {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
             cursor: pointer;
+            transition: background-color 0.2s ease;
+            text-decoration: none;
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
+        }
+        .filter-box .btn-clear-filter:hover {
+            background-color: #5a6268;
+            color: white;
+            text-decoration: none;
+        }
+        @media (max-width: 768px) {
+            .filter-container {
+                justify-content: center;
+            }
+            .filter-box {
+                flex-direction: column;
+                align-items: stretch;
+                width: 100%;
+                padding: 14px 16px;
+            }
+            .filter-box .quick-filters {
+                justify-content: center;
+            }
+            .filter-box .date-input-group {
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+            .filter-box .form-control {
+                width: 100%;
+            }
+            .filter-divider {
+                display: none;
+            }
         }
     </style>
 </head>
@@ -350,22 +437,17 @@ function getFullName($row) {
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top shadow-sm">
         <div class="container-fluid px-0">
             <div class="logo">
-                <a class="navbar-brand fw-bold mb-0" href="dentist_tracking.php">DentFlow Admin</a>
+                <a class="navbar-brand fw-bold mb-0" href="admin_dashboard.php">DentFlow Admin</a>
             </div>
             <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#mobileMenuToggle">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="mobileMenuToggle">
                 <div class="navbar-nav ms-auto fw-medium align-items-lg-center text-center gap-lg-4 mt-2 mt-lg-0">
-                    <?php if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'dentist'): ?>
-                        <a class="nav-link active py-2 py-lg-0" href="dentist_tracking.php">Patient Lists</a>
-                        <a class="nav-link py-2 py-lg-0" href="dentist_chat.php">Quick Chat</a>
-                        <a class="nav-link text-danger-custom fw-bold py-2 py-lg-0 ms-lg-3" href="app_process.php?action=logout">Logout</a>
-                    <?php else: ?>
-                        <a class="nav-link active py-2 py-lg-0" href="dentist_tracking.php">Patient Lists</a>
-                        <a class="nav-link py-2 py-lg-0" href="dentist_chat.php">Quick Chat</a>
-                        <a class="nav-link text-warning-custom fw-bold py-2 py-lg-0" href="dentist_login.php">Login</a>
-                    <?php endif; ?>
+                    <a class="nav-link active py-2 py-lg-0" href="admin_tracking.php">Patient Lists</a>
+                    <a class="nav-link py-2 py-lg-0" href="admin_chat.php">Quick Chat</a>
+                    <a class="nav-link py-2 py-lg-0" href="admin_dashboard.php">Dashboard</a>
+                    <a class="nav-link text-danger-custom fw-bold py-2 py-lg-0 ms-lg-3" href="app_process.php?action=logout">Logout</a>
                 </div>
             </div>
         </div>
@@ -412,11 +494,24 @@ function getFullName($row) {
             </div>
         </div>
 
-        <!-- Global Search -->
-        <div class="search-wrapper">
-            <div class="search-box">
-                <i class="fas fa-search search-icon"></i>
-                <input type="text" id="globalSearch" class="form-control" placeholder="Search patients by name..." onkeyup="filterAllPatients()">
+        <!-- Date Filter - Right Aligned -->
+        <div class="filter-container">
+            <div class="filter-box">
+                <div class="quick-filters">
+                    <a href="?filter=today" class="btn-quick <?php echo $filter_type === 'today' ? 'active' : ''; ?>">Today</a>
+                    <a href="?filter=tomorrow" class="btn-quick <?php echo $filter_type === 'tomorrow' ? 'active' : ''; ?>">Tomorrow</a>
+                    <a href="?filter=week" class="btn-quick <?php echo $filter_type === 'week' ? 'active' : ''; ?>">This Week</a>
+                    <a href="?filter=month" class="btn-quick <?php echo $filter_type === 'month' ? 'active' : ''; ?>">This Month</a>
+                    <a href="?filter=all" class="btn-quick <?php echo $filter_type === 'all' ? 'active' : ''; ?>">All</a>
+                </div>
+                <span class="filter-divider">|</span>
+                <div class="date-input-group">
+                    <label for="dateFilter">Select date:</label>
+                    <input type="date" id="dateFilter" class="form-control" value="<?php echo $date_filter; ?>" onchange="window.location.href='?date='+this.value">
+                    <?php if ($filter_type !== 'today' && $filter_type !== 'all'): ?>
+                        <a href="?filter=today" class="btn-clear-filter">Clear</a>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
 
@@ -427,11 +522,28 @@ function getFullName($row) {
                 <?php 
                 $pending_empty = true;
                 foreach ($_SESSION['appointments'] as $idx => $row): 
+                    // Apply date filter
+                    if ($filter_type !== 'all') {
+                        $appt_date = $row['appt_date'] ?? '';
+                        if ($filter_type === 'today' && $appt_date !== date('Y-m-d')) continue;
+                        if ($filter_type === 'tomorrow' && $appt_date !== date('Y-m-d', strtotime('+1 day'))) continue;
+                        if ($filter_type === 'week') {
+                            $week_start = date('Y-m-d', strtotime('monday this week'));
+                            $week_end = date('Y-m-d', strtotime('sunday this week'));
+                            if ($appt_date < $week_start || $appt_date > $week_end) continue;
+                        }
+                        if ($filter_type === 'month') {
+                            $month_start = date('Y-m-01');
+                            $month_end = date('Y-m-t');
+                            if ($appt_date < $month_start || $appt_date > $month_end) continue;
+                        }
+                        if ($filter_type === 'date' && $appt_date !== $date_filter) continue;
+                    }
                     if (isset($row['status']) && $row['status'] === 'Pending'):
                         $pending_empty = false;
                         $full_name = getFullName($row);
                 ?>
-                    <div class="patient-card card border shadow-sm mb-3 p-3 card-pending patient-row patient-card-clickable" data-patient-name="<?php echo strtolower(htmlspecialchars($full_name)); ?>" data-bs-toggle="modal" data-bs-target="#detailModal<?php echo $idx; ?>">
+                    <div class="patient-card card border shadow-sm mb-3 p-3 card-pending patient-card-clickable" data-bs-toggle="modal" data-bs-target="#detailModal<?php echo $idx; ?>">
                         <div class="row align-items-center">
                             <div class="col-md-7">
                                 <div class="patient-name">
@@ -491,7 +603,7 @@ function getFullName($row) {
                 endforeach; 
                 if ($pending_empty):
                 ?>
-                    <div class="text-center text-muted py-4 small fw-medium">No pending appointments found.</div>
+                    <div class="text-center text-muted py-4 small fw-medium">No pending appointments found for this date.</div>
                 <?php endif; ?>
             </div>
         </div>
@@ -503,11 +615,28 @@ function getFullName($row) {
                 <?php 
                 $ops_empty = true;
                 foreach ($_SESSION['appointments'] as $idx => $row): 
+                    // Apply date filter
+                    if ($filter_type !== 'all') {
+                        $appt_date = $row['appt_date'] ?? '';
+                        if ($filter_type === 'today' && $appt_date !== date('Y-m-d')) continue;
+                        if ($filter_type === 'tomorrow' && $appt_date !== date('Y-m-d', strtotime('+1 day'))) continue;
+                        if ($filter_type === 'week') {
+                            $week_start = date('Y-m-d', strtotime('monday this week'));
+                            $week_end = date('Y-m-d', strtotime('sunday this week'));
+                            if ($appt_date < $week_start || $appt_date > $week_end) continue;
+                        }
+                        if ($filter_type === 'month') {
+                            $month_start = date('Y-m-01');
+                            $month_end = date('Y-m-t');
+                            if ($appt_date < $month_start || $appt_date > $month_end) continue;
+                        }
+                        if ($filter_type === 'date' && $appt_date !== $date_filter) continue;
+                    }
                     if (isset($row['status']) && $row['status'] === 'Operational'):
                         $ops_empty = false;
                         $full_name = getFullName($row);
                 ?>
-                    <div class="patient-card card border shadow-sm mb-3 p-3 card-active patient-row patient-card-clickable" data-patient-name="<?php echo strtolower(htmlspecialchars($full_name)); ?>" data-bs-toggle="modal" data-bs-target="#detailModalActive<?php echo $idx; ?>">
+                    <div class="patient-card card border shadow-sm mb-3 p-3 card-active patient-card-clickable" data-bs-toggle="modal" data-bs-target="#detailModalActive<?php echo $idx; ?>">
                         <div class="row align-items-center">
                             <div class="col-md-7">
                                 <div class="patient-name">
@@ -567,7 +696,7 @@ function getFullName($row) {
                 endforeach; 
                 if ($ops_empty):
                 ?>
-                    <div class="text-center text-muted py-4 small fw-medium">No active patients in the queue.</div>
+                    <div class="text-center text-muted py-4 small fw-medium">No active patients in the queue for this date.</div>
                 <?php endif; ?>
             </div>
         </div>
@@ -579,11 +708,28 @@ function getFullName($row) {
                 <?php 
                 $history_empty = true;
                 foreach ($_SESSION['appointments'] as $idx => $row): 
+                    // Apply date filter
+                    if ($filter_type !== 'all') {
+                        $appt_date = $row['appt_date'] ?? '';
+                        if ($filter_type === 'today' && $appt_date !== date('Y-m-d')) continue;
+                        if ($filter_type === 'tomorrow' && $appt_date !== date('Y-m-d', strtotime('+1 day'))) continue;
+                        if ($filter_type === 'week') {
+                            $week_start = date('Y-m-d', strtotime('monday this week'));
+                            $week_end = date('Y-m-d', strtotime('sunday this week'));
+                            if ($appt_date < $week_start || $appt_date > $week_end) continue;
+                        }
+                        if ($filter_type === 'month') {
+                            $month_start = date('Y-m-01');
+                            $month_end = date('Y-m-t');
+                            if ($appt_date < $month_start || $appt_date > $month_end) continue;
+                        }
+                        if ($filter_type === 'date' && $appt_date !== $date_filter) continue;
+                    }
                     if (isset($row['status']) && $row['status'] !== 'Pending' && $row['status'] !== 'Operational'):
                         $history_empty = false;
                         $full_name = getFullName($row);
                 ?>
-                    <div class="patient-card card border shadow-sm mb-3 p-3 card-history patient-row patient-card-clickable" data-patient-name="<?php echo strtolower(htmlspecialchars($full_name)); ?>" data-bs-toggle="modal" data-bs-target="#detailModalHistory<?php echo $idx; ?>">
+                    <div class="patient-card card border shadow-sm mb-3 p-3 card-history patient-card-clickable" data-bs-toggle="modal" data-bs-target="#detailModalHistory<?php echo $idx; ?>">
                         <div class="row align-items-center">
                             <div class="col-md-8">
                                 <div class="patient-name text-secondary">
@@ -638,7 +784,7 @@ function getFullName($row) {
                 endforeach; 
                 if ($history_empty):
                 ?>
-                    <div class="text-center text-muted py-4 small fw-medium">No past logs found.</div>
+                    <div class="text-center text-muted py-4 small fw-medium">No past logs found for this date.</div>
                 <?php endif; ?>
             </div>
         </div>
@@ -789,21 +935,6 @@ function getFullName($row) {
                 });
             });
         });
-
-        function filterAllPatients() {
-            const input = document.getElementById('globalSearch');
-            const filter = input.value.toLowerCase();
-            const rows = document.querySelectorAll('.patient-row');
-            
-            rows.forEach(row => {
-                const name = row.getAttribute('data-patient-name');
-                if (name && name.includes(filter)) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-        }
     </script>
 </body>
 </html>

@@ -3,27 +3,40 @@ include('config.php');
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
+// Redirect if already logged in as admin
+if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin') {
+    $redirect = isset($_SESSION['redirect_after_login']) ? $_SESSION['redirect_after_login'] : 'admin_dashboard.php';
+    unset($_SESSION['redirect_after_login']);
+    header("Location: " . $redirect);
+    exit;
+}
+
+// Store the page they were trying to access
+if (isset($_GET['redirect'])) {
+    $_SESSION['redirect_after_login'] = $_GET['redirect'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DentFlow - Receptionist Login</title>
+    <title>DentFlow Admin - Login</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
             margin: 0;
             font-family: system-ui, -apple-system, sans-serif;
-            background-color: #f4f6f9;
+            background-color: #f8f9fa;
         }
         nav {
-            background-color: #4b5563 !important;
+            background-color: #212529 !important;
             padding: 15px 20px !important;
             transition: padding 0.3s ease;
         }
         .navbar-brand {
-            color: white !important;
+            color: #0dcaf0 !important;
             text-decoration: none;
             font-weight: bold;
             font-size: 24px;
@@ -43,6 +56,9 @@ if (session_status() === PHP_SESSION_NONE) {
             background: none;
             border: none;
         }
+        .nav-link.text-warning {
+            color: #ffc107 !important;
+        }
         @media (min-width: 992px) {
             nav {
                 padding: 20px 100px !important;
@@ -51,29 +67,12 @@ if (session_status() === PHP_SESSION_NONE) {
                 padding: 6px 4px !important;
             }
             .nav-link:hover {
-                border-bottom: 4px solid white;
-                color: white !important;
+                border-bottom: 4px solid #0dcaf0;
+                color: #0dcaf0 !important;
             }
-            .text-warning-custom:hover {
+            .nav-link.text-warning:hover {
                 border-bottom: 4px solid #ffc107;
                 color: #ffc107 !important;
-            }
-        }
-        .text-warning-custom {
-            color: #ffc107;
-        }
-        @media (max-width: 991px) {
-            .navbar-collapse {
-                background-color: #3a424a;
-                border-radius: 8px;
-                padding: 15px;
-                margin-top: 15px;
-            }
-            .nav-link {
-                border-bottom: none !important;
-                padding: 10px 0 !important;
-                width: 100%;
-                text-align: center;
             }
         }
         .auth-screen-wrapper {
@@ -104,32 +103,6 @@ if (session_status() === PHP_SESSION_NONE) {
             font-size: 14px !important;
             margin-bottom: 8px;
         }
-        .was-validated .form-control:invalid,
-        .form-control.is-invalid-custom {
-            border-color: #dc3545 !important;
-            padding-right: calc(1.5em + 0.75rem) !important;
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath d='M6 8h.01M6 4v2.5' stroke-width='1.5' stroke-linecap='round'/%3e%3c/svg%3e") !important;
-            background-repeat: no-repeat !important;
-            background-position: right calc(0.375em + 0.1875rem) center !important;
-            background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem) !important;
-        }
-        .was-validated .form-control:invalid:focus,
-        .form-control.is-invalid-custom:focus {
-            box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25) !important;
-        }
-        .was-validated .form-control:valid,
-        .form-control.is-valid-custom {
-            border-color: #198754 !important;
-            padding-right: calc(1.5em + 0.75rem) !important;
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%23198754' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e") !important;
-            background-repeat: no-repeat !important;
-            background-position: right calc(0.375em + 0.1875rem) center !important;
-            background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem) !important;
-        }
-        .was-validated .form-control:valid:focus,
-        .form-control.is-valid-custom:focus {
-            box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25) !important;
-        }
         .auth-submit-btn {
             font-size: 18px !important;
             height: 54px !important;
@@ -138,11 +111,28 @@ if (session_status() === PHP_SESSION_NONE) {
             transition: background-color 0.3s ease;
         }
         .btn-login-custom {
-            background-color: #4b5563 !important;
-            color: white !important;
+            background-color: #212529 !important;
+            color: #0dcaf0 !important;
         }
         .btn-login-custom:hover {
-            background-color: #374151 !important;
+            background-color: #1a1d20 !important;
+        }
+        @media (max-width: 991px) {
+            .navbar-collapse {
+                background-color: #1a1d20;
+                border-radius: 8px;
+                padding: 15px;
+                margin-top: 15px;
+            }
+            .nav-link {
+                border-bottom: none !important;
+                padding: 10px 0 !important;
+                width: 100%;
+                text-align: center;
+            }
+            .nav-link.text-warning {
+                color: #ffc107 !important;
+            }
         }
     </style>
 </head>
@@ -150,15 +140,17 @@ if (session_status() === PHP_SESSION_NONE) {
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top shadow-sm">
         <div class="container-fluid px-0">
             <div class="logo">
-                <a class="navbar-brand fw-bold mb-0" href="receptionist_dashboard.php">DentFlow Front Desk</a>
+                <a class="navbar-brand fw-bold mb-0" href="admin_dashboard.php">DentFlow Admin</a>
             </div>
             <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#mobileMenuToggle">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="mobileMenuToggle">
                 <div class="navbar-nav ms-auto fw-medium align-items-lg-center text-center gap-lg-4 mt-2 mt-lg-0">
-                    <a class="nav-link text-warning-custom fw-bold py-2 py-lg-0" href="receptionist_login.php">Login</a>
-                    <a class="nav-link py-2 py-lg-0" href="receptionist_dashboard.php">Dashboard</a>
+                    <a class="nav-link py-2 py-lg-0" href="admin_tracking.php">Tracking</a>
+                    <a class="nav-link py-2 py-lg-0" href="admin_chat.php">Quick Chat</a>
+                    <a class="nav-link py-2 py-lg-0" href="admin_dashboard.php">Dashboard</a>
+                    <a class="nav-link text-warning fw-bold py-2 py-lg-0 ms-lg-3" href="admin_login.php">Login</a>
                 </div>
             </div>
         </div>
@@ -175,13 +167,13 @@ if (session_status() === PHP_SESSION_NONE) {
             
             <div class="card border-0 custom-auth-card rounded-4 overflow-hidden">
                 <div class="card-header bg-white pt-4 pb-3 border-0 text-center">
-                    <h3 class="fw-bold mb-0" style="color: #4b5563;">Receptionist Login</h3>
-                    <p class="text-muted small mt-1 mb-0">Sign in to manage the front desk.</p>
+                    <h3 class="fw-bold mb-0" style="color: #212529;">Admin Login</h3>
+                    <p class="text-muted small mt-1 mb-0">Sign in to manage the DentFlow backend.</p>
                 </div>
                 
                 <div class="card-body p-4 pt-2">
                     <form method="POST" action="app_process.php" class="needs-validation" novalidate>
-                        <input type="hidden" name="action" value="receptionist_login">
+                        <input type="hidden" name="action" value="admin_login">
                         
                         <div class="mb-3">
                             <label class="form-label fw-bold text-secondary">Staff Code</label>

@@ -4,9 +4,10 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Check if receptionist is logged in
-if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'receptionist') {
-    header("Location: receptionist_login.php");
+// Check if admin is logged in
+if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
+    $_SESSION['redirect_after_login'] = 'admin_dashboard.php';
+    header("Location: admin_login.php");
     exit;
 }
 
@@ -28,7 +29,7 @@ loadSessionFromDB();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DentFlow Front Desk</title>
+    <title>DentFlow Admin - Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
@@ -39,12 +40,12 @@ loadSessionFromDB();
             padding-top: 120px;
         }
         nav {
-            background-color: #4b5563 !important;
+            background-color: #212529 !important;
             padding: 15px 20px !important;
             transition: padding 0.3s ease;
         }
         .navbar-brand {
-            color: white !important;
+            color: #0dcaf0 !important;
             text-decoration: none;
             font-weight: bold;
             font-size: 24px;
@@ -72,33 +73,26 @@ loadSessionFromDB();
                 padding: 6px 4px !important;
             }
             .nav-link:hover, .nav-link.active {
-                border-bottom: 4px solid white;
-                color: white !important;
+                border-bottom: 4px solid #0dcaf0;
+                color: #0dcaf0 !important;
                 background: transparent !important;
             }
             .text-danger-custom:hover {
                 border-bottom: 4px solid #dc3545;
                 color: #dc3545 !important;
             }
-            .text-warning-custom:hover {
-                border-bottom: 4px solid #ffc107;
-                color: #ffc107 !important;
-            }
         }
         .text-danger-custom {
             color: #dc3545;
         }
-        .text-warning-custom {
-            color: #ffc107;
-        }
         .nav-link.active {
             opacity: 1 !important;
             font-weight: 700;
-            border-bottom: 4px solid white !important;
+            border-bottom: 4px solid #0dcaf0 !important;
         }
         @media (max-width: 991px) {
             .navbar-collapse {
-                background-color: #3a424a;
+                background-color: #1a1d20;
                 border-radius: 8px;
                 padding: 15px;
                 margin-top: 15px;
@@ -110,7 +104,7 @@ loadSessionFromDB();
                 text-align: center;
             }
             .nav-link.active {
-                background-color: rgba(255, 255, 255, 0.15);
+                background-color: rgba(13, 202, 240, 0.15);
                 border-radius: 5px;
                 padding-left: 10px !important;
             }
@@ -231,8 +225,8 @@ loadSessionFromDB();
             height: 56px !important;
         }
         .form-control:focus {
-            border-color: #4b5563 !important;
-            box-shadow: 0 0 0 0.25rem rgba(75, 85, 99, 0.25) !important;
+            border-color: #212529 !important;
+            box-shadow: 0 0 0 0.25rem rgba(33, 37, 41, 0.25) !important;
         }
         .form-label {
             font-size: 16px !important;
@@ -245,15 +239,15 @@ loadSessionFromDB();
             padding: 12px 16px !important;
         }
         .btn-dark {
-            background-color: #4b5563 !important;
-            border-color: #4b5563 !important;
+            background-color: #212529 !important;
+            border-color: #212529 !important;
             font-size: 18px !important;
             padding: 14px !important;
             height: 56px !important;
         }
         .btn-dark:hover {
-            background-color: #374151 !important;
-            border-color: #374151 !important;
+            background-color: #1a1d20 !important;
+            border-color: #1a1d20 !important;
         }
         .btn-danger-custom {
             background-color: #dc3545 !important;
@@ -422,8 +416,8 @@ loadSessionFromDB();
             background: #f8f9fa;
         }
         .filter-section .filter-buttons .btn-filter.active-all {
-            border-color: #4b5563;
-            background: #4b5563;
+            border-color: #212529;
+            background: #212529;
             color: white;
         }
         .filter-section .filter-buttons .btn-filter.active-unpaid {
@@ -437,8 +431,8 @@ loadSessionFromDB();
             color: white;
         }
         .filter-section .filter-buttons .btn-filter.active-all:hover {
-            background: #374151;
-            border-color: #374151;
+            background: #1a1d20;
+            border-color: #1a1d20;
         }
         .filter-section .filter-buttons .btn-filter.active-unpaid:hover {
             background: #bd2130;
@@ -461,6 +455,23 @@ loadSessionFromDB();
         .billing-header h5 {
             margin-bottom: 0;
         }
+        .btn-admin-custom {
+            background-color: #212529 !important;
+            border-color: #212529 !important;
+            color: white !important;
+        }
+        .btn-admin-custom:hover {
+            background-color: #1a1d20 !important;
+            border-color: #1a1d20 !important;
+        }
+        .btn-admin-outline {
+            color: #212529 !important;
+            border-color: #212529 !important;
+        }
+        .btn-admin-outline:hover {
+            background-color: #212529 !important;
+            color: white !important;
+        }
     </style>
 </head>
 <body>
@@ -468,20 +479,17 @@ loadSessionFromDB();
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top shadow-sm">
         <div class="container-fluid px-0">
             <div class="logo">
-                <a class="navbar-brand fw-bold mb-0" href="receptionist_dashboard.php">DentFlow Front Desk</a>
+                <a class="navbar-brand fw-bold mb-0" href="admin_dashboard.php">DentFlow Admin</a>
             </div>
             <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#mobileMenuToggle">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="mobileMenuToggle">
                 <div class="navbar-nav ms-auto fw-medium align-items-lg-center text-center gap-lg-4 mt-2 mt-lg-0">
-                    <?php if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'receptionist'): ?>
-                        <a class="nav-link active py-2 py-lg-0" href="receptionist_dashboard.php">Dashboard</a>
-                        <a class="nav-link text-danger-custom fw-bold py-2 py-lg-0 ms-lg-3" href="app_process.php?action=logout">Logout</a>
-                    <?php else: ?>
-                        <a class="nav-link text-warning-custom fw-bold py-2 py-lg-0" href="receptionist_login.php">Login</a>
-                        <a class="nav-link active py-2 py-lg-0" href="receptionist_dashboard.php">Dashboard</a>
-                    <?php endif; ?>
+                    <a class="nav-link py-2 py-lg-0" href="admin_tracking.php">Patient Lists</a>
+                    <a class="nav-link py-2 py-lg-0" href="admin_chat.php">Quick Chat</a>
+                    <a class="nav-link active py-2 py-lg-0" href="admin_dashboard.php">Dashboard</a>
+                    <a class="nav-link text-danger-custom fw-bold py-2 py-lg-0 ms-lg-3" href="app_process.php?action=logout">Logout</a>
                 </div>
             </div>
         </div>

@@ -9,6 +9,11 @@ $error_message = isset($_SESSION['error_message']) ? $_SESSION['error_message'] 
 if ($error_message) {
     unset($_SESSION['error_message']);
 }
+
+// Store redirect URL if coming from another page
+if (isset($_GET['redirect'])) {
+    $_SESSION['redirect_after_login'] = $_GET['redirect'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">

@@ -6,6 +6,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Check if patient is logged in
 if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'patient') {
+    $_SESSION['redirect_after_login'] = 'patient_appointment.php';
     header("Location: patient_auth.php");
     exit;
 }
@@ -385,14 +386,6 @@ if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'patient') {
                         </div>
                     </div>
 
-                    <div id="gcash_qr_wrapper" class="mb-3 p-3 bg-white border border-info rounded text-center d-none shadow-sm">
-                        <label class="form-label d-block fw-bold text-info small mb-2">Scan GCash QR Code to Pay</label>
-                        <div class="bg-light border mx-auto d-flex align-items-center justify-content-center rounded" style="width: 160px; height: 160px;">
-                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=DentFlowPayment" alt="GCash QR" class="img-fluid rounded">
-                        </div>
-                        <span class="text-muted d-block mt-2" style="font-size: 11px;">Please keep a screenshot of your transaction receipt.</span>
-                    </div>
-
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Urgency Status</label>
                         <select name="urgency_status" id="urgency_status_select" class="form-select border-warning shadow-sm" required>
@@ -506,22 +499,12 @@ if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'patient') {
                 form.submit();
             });
 
-            const paymentSelect = document.getElementById('payment_method_select');
-            const gcashQrWrapper = document.getElementById('gcash_qr_wrapper');
             const urgencySelect = document.getElementById('urgency_status_select');
             const messageLabel = document.getElementById('message_label');
             const messageTextarea = document.getElementById('message_textarea');
             const urgentAlert = document.getElementById('urgent_requirement_alert');
             const serviceSelect = document.getElementById('service_select');
             const servicePriceInput = document.getElementById('service_price');
-
-            paymentSelect.addEventListener('change', function() {
-                if (this.value === 'Gcash') {
-                    gcashQrWrapper.classList.remove('d-none');
-                } else {
-                    gcashQrWrapper.classList.add('d-none');
-                }
-            });
 
             urgencySelect.addEventListener('change', function() {
                 if (this.value === 'Urgent') {

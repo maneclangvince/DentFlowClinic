@@ -6,6 +6,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Check if patient is logged in
 if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'patient') {
+    $_SESSION['redirect_after_login'] = 'patient_home.php';
     header("Location: patient_auth.php");
     exit;
 }

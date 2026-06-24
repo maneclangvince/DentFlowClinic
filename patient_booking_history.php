@@ -6,6 +6,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Check if patient is logged in
 if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'patient') {
+    $_SESSION['redirect_after_login'] = 'patient_booking_history.php';
     header("Location: patient_auth.php");
     exit;
 }
@@ -19,6 +20,12 @@ function getFullName($row) {
     if (!empty($row['suffix'])) $name_parts[] = $row['suffix'];
     return !empty($name_parts) ? implode(' ', $name_parts) : ($row['name'] ?? 'N/A');
 }
+
+// Get current user email
+$user_email = $_SESSION['user_email'] ?? '';
+
+// Get filter from GET
+$status_filter = isset($_GET['status']) ? $_GET['status'] : 'all';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -241,6 +248,9 @@ function getFullName($row) {
             border-left: 4px solid #6c757d !important;
             opacity: 0.85;
         }
+        .card-urgent {
+            border-left: 4px solid #dc3545 !important;
+        }
         .btn-close-custom {
             background-color: #e9ecef !important;
             color: #212529 !important;
@@ -282,6 +292,96 @@ function getFullName($row) {
                 padding-left: 10px !important;
             }
         }
+
+        /* Header with filter */
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #035270;
+            padding-bottom: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .history-header h2 {
+            margin: 0;
+            font-size: 28px;
+        }
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .filter-group label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #495057;
+            margin: 0;
+        }
+        .filter-group select {
+            padding: 6px 14px;
+            border-radius: 8px;
+            border: 1px solid #ced4da;
+            font-size: 14px;
+            background-color: white;
+            cursor: pointer;
+            min-width: 140px;
+            height: 38px;
+        }
+        .filter-group select:focus {
+            border-color: #035270;
+            box-shadow: 0 0 0 0.2rem rgba(3, 82, 112, 0.25);
+        }
+        .filter-group .btn-clear-filter {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            text-decoration: none;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+        }
+        .filter-group .btn-clear-filter:hover {
+            background-color: #5a6268;
+            color: white;
+            text-decoration: none;
+        }
+        .badge-urgent {
+            background-color: #dc3545 !important;
+            color: white !important;
+        }
+        .badge-pending {
+            background-color: #ffc107 !important;
+            color: #212529 !important;
+        }
+        .badge-operational {
+            background-color: #198754 !important;
+            color: white !important;
+        }
+        .badge-completed {
+            background-color: #6c757d !important;
+            color: white !important;
+        }
+        .badge-cancelled {
+            background-color: #dc3545 !important;
+            color: white !important;
+        }
+        .badge-declined {
+            background-color: #dc3545 !important;
+            color: white !important;
+        }
+        .history-card .badge {
+            font-size: 12px !important;
+            padding: 4px 12px !important;
+        }
     </style>
 </head>
 <body>
@@ -313,7 +413,23 @@ function getFullName($row) {
     <div class="container my-4" style="max-width: 900px;">
         <div class="card border-0 shadow-sm bg-white rounded-4">
             <div class="card-body p-4">
-                <h2 class="text-primary fw-bold border-bottom pb-3 mb-4">My Booking History</h2>
+                
+                <!-- Header with Filter -->
+                <div class="history-header">
+                    <h2 class="text-primary fw-bold">My Booking History</h2>
+                    <div class="filter-group">
+                        <label for="statusFilter">Filter:</label>
+                        <select id="statusFilter" onchange="window.location.href='?status='+this.value">
+                            <option value="all" <?php echo $status_filter === 'all' ? 'selected' : ''; ?>>All Status</option>
+                            <option value="Pending" <?php echo $status_filter === 'Pending' ? 'selected' : ''; ?>>Pending</option>
+                            <option value="Operational" <?php echo $status_filter === 'Operational' ? 'selected' : ''; ?>>Operational</option>
+                            <option value="Completed" <?php echo $status_filter === 'Completed' ? 'selected' : ''; ?>>Completed</option>
+                        </select>
+                        <?php if ($status_filter !== 'all'): ?>
+                            <a href="?status=all" class="btn-clear-filter">Clear</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
                 
                 <?php 
                 $user_email = $_SESSION['user_email'] ?? '';
@@ -328,15 +444,35 @@ function getFullName($row) {
                     $has_bookings = false;
                     foreach (array_reverse($_SESSION['booking_history']) as $booking):
                         if ($booking['email'] == $user_email):
+                            // Apply status filter
+                            if ($status_filter !== 'all' && $booking['status'] !== $status_filter) {
+                                continue;
+                            }
                             $has_bookings = true;
                             $status_class = '';
+                            $badge_class = '';
+                            
+                            // Determine card border color
                             if ($booking['status'] === 'Pending') {
                                 $status_class = 'card-pending';
+                                $badge_class = 'badge-pending';
                             } elseif ($booking['status'] === 'Operational') {
                                 $status_class = 'card-active';
-                            } else {
+                                $badge_class = 'badge-operational';
+                            } elseif ($booking['status'] === 'Completed') {
                                 $status_class = 'card-history';
+                                $badge_class = 'badge-completed';
+                            } elseif ($booking['status'] === 'Cancelled' || $booking['status'] === 'Declined') {
+                                $status_class = 'card-urgent';
+                                $badge_class = 'badge-cancelled';
                             }
+                            
+                            // Urgent badge
+                            $is_urgent = isset($booking['urgency']) && $booking['urgency'] === 'Urgent';
+                            if ($is_urgent) {
+                                $status_class .= ' card-urgent';
+                            }
+                            
                             $full_name = getFullName($booking);
                 ?>
                         <div class="history-card card border shadow-sm mb-3 p-3 <?php echo $status_class; ?>" data-bs-toggle="modal" data-bs-target="#detailModal<?php echo $booking['id']; ?>">
@@ -344,25 +480,21 @@ function getFullName($row) {
                                 <div class="col-md-8">
                                     <div class="history-name">
                                         <?php echo htmlspecialchars($full_name); ?>
+                                        <?php if ($is_urgent): ?>
+                                            <span class="badge badge-urgent ms-1">Urgent</span>
+                                        <?php endif; ?>
                                     </div>
                                     <div class="history-details">
                                         <?php echo htmlspecialchars($booking['service'] ?? 'N/A'); ?> • 
                                         <?php echo htmlspecialchars($booking['appt_date'] . ' @ ' . $booking['appt_time']); ?>
-                                        <span class="badge <?php 
-                                            echo ($booking['status'] === 'Operational') ? 'bg-success' : 
-                                                 (($booking['status'] === 'Pending') ? 'bg-warning text-dark' : 
-                                                 (($booking['status'] === 'Declined') ? 'bg-danger' : 'bg-secondary'));
-                                        ?> ms-2"><?php echo htmlspecialchars($booking['status']); ?></span>
-                                        <?php if ($booking['urgency'] === 'Urgent'): ?>
-                                            <span class="badge bg-danger ms-1">Urgent</span>
-                                        <?php endif; ?>
+                                        <span class="badge <?php echo $badge_class; ?> ms-2"><?php echo htmlspecialchars($booking['status']); ?></span>
                                     </div>
                                 </div>
                                 <div class="col-md-4 text-end">
                                     <?php if ($booking['status'] !== 'Declined' && $booking['status'] !== 'Operational' && $booking['status'] !== 'Completed' && $booking['status'] !== 'Cancelled'): ?>
                                         <button class="btn btn-sm btn-primary me-1" onclick="event.stopPropagation();" data-bs-toggle="modal" data-bs-target="#editModal<?php echo $booking['id']; ?>">Edit</button>
                                     <?php endif; ?>
-                                    <?php if ($booking['status'] !== 'Completed' && $booking['status'] !== 'Declined'): ?>
+                                    <?php if ($booking['status'] !== 'Completed' && $booking['status'] !== 'Declined' && $booking['status'] !== 'Cancelled'): ?>
                                         <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();" data-bs-toggle="modal" data-bs-target="#deleteModal<?php echo $booking['id']; ?>">Delete</button>
                                     <?php endif; ?>
                                 </div>
@@ -396,9 +528,10 @@ function getFullName($row) {
                                         <div class="detail-row"><span class="detail-label">Message:</span> <span class="detail-value"><?php echo htmlspecialchars($booking['message'] ?? 'N/A'); ?></span></div>
                                         <div class="detail-row"><span class="detail-label">Status:</span> <span class="detail-value">
                                             <span class="badge <?php 
-                                                echo ($booking['status'] === 'Operational') ? 'bg-success' : 
-                                                     (($booking['status'] === 'Pending') ? 'bg-warning text-dark' : 
-                                                     (($booking['status'] === 'Declined') ? 'bg-danger' : 'bg-secondary'));
+                                                echo ($booking['status'] === 'Operational') ? 'badge-operational' : 
+                                                     (($booking['status'] === 'Pending') ? 'badge-pending' : 
+                                                     (($booking['status'] === 'Declined') ? 'badge-declined' : 
+                                                     (($booking['status'] === 'Cancelled') ? 'badge-cancelled' : 'badge-completed')));
                                             ?>"><?php echo htmlspecialchars($booking['status'] ?? 'N/A'); ?></span>
                                         </span></div>
                                         <div class="detail-row"><span class="detail-label">Booked At:</span> <span class="detail-value"><?php echo htmlspecialchars($booking['booked_at'] ?? 'N/A'); ?></span></div>
