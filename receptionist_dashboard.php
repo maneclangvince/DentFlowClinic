@@ -19,6 +19,9 @@ function getFullName($row) {
     if (!empty($row['suffix'])) $name_parts[] = $row['suffix'];
     return !empty($name_parts) ? implode(' ', $name_parts) : ($row['name'] ?? 'N/A');
 }
+
+// Force reload inventory from database
+loadSessionFromDB();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -152,6 +155,16 @@ function getFullName($row) {
             font-weight: 600 !important;
             padding: 8px 16px !important;
             font-size: 14px !important;
+        }
+        .badge.bg-danger {
+            background-color: #dc3545 !important;
+        }
+        .badge.bg-warning {
+            background-color: #ffc107 !important;
+            color: #212529 !important;
+        }
+        .badge.bg-success {
+            background-color: #198754 !important;
         }
         .btn-modal-yes {
             background-color: #dc3545 !important;
@@ -700,7 +713,9 @@ function getFullName($row) {
                         </tr>
                     </thead>
                     <tbody id="inventoryBody">
-                        <?php foreach ($_SESSION['inventory'] as $id => $item): 
+                        <?php 
+                        $inventory_items = $_SESSION['inventory'] ?? [];
+                        foreach ($inventory_items as $id => $item): 
                             $quantity = $item['quantity'] ?? 0;
                             $low_limit = $item['low_stock_limit'] ?? 10;
                             if ($quantity == 0) {
@@ -713,6 +728,7 @@ function getFullName($row) {
                                 $status_class = 'bg-success';
                                 $status_text = 'In Stock';
                             }
+                            $item_id = $item['id'] ?? $id;
                         ?>
                         <tr class="inventory-row" data-item="<?php echo strtolower(htmlspecialchars($item['item'])); ?>">
                             <td class="text-center"><strong><?php echo htmlspecialchars($item['item']); ?></strong></td>
@@ -723,13 +739,14 @@ function getFullName($row) {
                             </td>
                             <td class="text-center">
                                 <div class="action-buttons-inventory">
-                                    <button class="btn btn-sm btn-outline-secondary fw-bold" data-bs-toggle="modal" data-bs-target="#invModal<?php echo $id; ?>">Adjust</button>
-                                    <button class="btn btn-sm btn-danger-custom fw-bold" data-bs-toggle="modal" data-bs-target="#deleteModal<?php echo $id; ?>">Delete</button>
+                                    <button class="btn btn-sm btn-outline-secondary fw-bold" data-bs-toggle="modal" data-bs-target="#invModal<?php echo $item_id; ?>">Adjust</button>
+                                    <button class="btn btn-sm btn-danger-custom fw-bold" data-bs-toggle="modal" data-bs-target="#deleteModal<?php echo $item_id; ?>">Delete</button>
                                 </div>
                             </td>
                         </tr>
 
-                        <div class="modal fade" id="invModal<?php echo $id; ?>" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+                        <!-- Adjust Inventory Modal -->
+                        <div class="modal fade" id="invModal<?php echo $item_id; ?>" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
                                 <div class="modal-content border-0 shadow-lg">
                                     <div class="modal-header border-0 pt-4 px-4 pb-2">
@@ -739,7 +756,7 @@ function getFullName($row) {
                                     <form method="POST" action="app_process.php">
                                         <div class="modal-body px-4 py-3">
                                             <input type="hidden" name="action" value="modify_item">
-                                            <input type="hidden" name="id" value="<?php echo $id; ?>">
+                                            <input type="hidden" name="id" value="<?php echo $item_id; ?>">
                                             
                                             <div class="text-center mb-4">
                                                 <p class="text-muted mb-0" style="font-size: 16px;">Adjusting:</p>
@@ -748,15 +765,15 @@ function getFullName($row) {
                                             
                                             <div class="mb-3">
                                                 <label class="form-label fw-bold text-secondary">Quantity</label>
-                                                <input type="number" name="quantity" class="form-control" value="<?php echo $quantity; ?>" required min="0">
+                                                <input type="number" name="quantity" id="quantity_<?php echo $item_id; ?>" class="form-control" value="<?php echo $quantity; ?>" required min="0">
                                                 <div class="form-text text-muted">Enter 0 for out of stock.</div>
                                             </div>
                                             <div class="mb-3">
                                                 <label class="form-label fw-bold text-secondary">Price (₱)</label>
-                                                <input type="text" name="price" class="form-control" value="<?php echo number_format($item['price'] ?? 0, 2); ?>" required>
+                                                <input type="number" step="0.01" name="price" id="price_<?php echo $item_id; ?>" class="form-control" value="<?php echo number_format($item['price'] ?? 0, 2); ?>" required min="0">
                                             </div>
                                             
-                                            <div class="mt-3 p-3 bg-light rounded-3">
+                                            <div class="mt-3 p-3 bg-light rounded-3" id="statusPreview_<?php echo $item_id; ?>">
                                                 <p class="text-muted mb-1" style="font-size: 15px;">Current Status:</p>
                                                 <span class="badge <?php echo $status_class; ?> px-3 py-2" style="font-size: 16px;"><?php echo $status_text; ?></span>
                                                 <?php if ($quantity > 0): ?>
@@ -765,15 +782,16 @@ function getFullName($row) {
                                             </div>
                                         </div>
                                         <div class="modal-footer border-0 pb-4 px-4 pt-2 d-flex gap-3 justify-content-center">
-                                            <button type="submit" class="btn btn-dark px-4 py-2 fw-bold" style="border-radius: 10px; min-width: 120px; font-size: 18px;">Yes</button>
-                                            <button type="button" class="btn btn-modal-no px-4 py-2 fw-bold" style="border-radius: 10px; min-width: 120px;" data-bs-dismiss="modal">No</button>
+                                            <button type="submit" class="btn btn-dark px-4 py-2 fw-bold" style="border-radius: 10px; min-width: 120px; font-size: 18px;">Save Changes</button>
+                                            <button type="button" class="btn btn-modal-no px-4 py-2 fw-bold" style="border-radius: 10px; min-width: 120px;" data-bs-dismiss="modal">Cancel</button>
                                         </div>
                                     </form>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="modal fade" id="deleteModal<?php echo $id; ?>" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+                        <!-- Delete Modal -->
+                        <div class="modal fade" id="deleteModal<?php echo $item_id; ?>" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
                                 <div class="modal-content border-0 shadow-lg">
                                     <div class="modal-header border-0 pt-4 px-4 pb-2">
@@ -786,7 +804,7 @@ function getFullName($row) {
                                         <p class="text-danger" style="font-size: 16px;">This action cannot be undone.</p>
                                     </div>
                                     <div class="modal-footer border-0 pb-4 px-4 pt-2 d-flex gap-3 justify-content-center">
-                                        <a href="app_process.php?action=delete_inventory_item&id=<?php echo $id; ?>" class="btn btn-modal-yes px-4 py-2 fw-bold" style="border-radius: 10px; min-width: 120px; text-decoration: none;">Yes</a>
+                                        <a href="app_process.php?action=delete_inventory_item&id=<?php echo $item_id; ?>" class="btn btn-modal-yes px-4 py-2 fw-bold" style="border-radius: 10px; min-width: 120px; text-decoration: none;">Yes</a>
                                         <button type="button" class="btn btn-modal-no px-4 py-2 fw-bold" style="border-radius: 10px; min-width: 120px;" data-bs-dismiss="modal">No</button>
                                     </div>
                                 </div>
@@ -808,7 +826,7 @@ function getFullName($row) {
             for (let i = 0; i < rows.length; i++) {
                 const row = rows[i];
                 const itemName = row.getAttribute('data-item');
-                if (itemName.includes(filter)) {
+                if (itemName && itemName.includes(filter)) {
                     row.style.display = '';
                 } else {
                     row.style.display = 'none';
@@ -840,6 +858,40 @@ function getFullName($row) {
                 }
             });
         }
+
+        // Live preview for inventory status change
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('[id^="quantity_"]').forEach(function(input) {
+                input.addEventListener('input', function() {
+                    const id = this.id.replace('quantity_', '');
+                    const quantity = parseInt(this.value) || 0;
+                    const statusPreview = document.getElementById('statusPreview_' + id);
+                    
+                    if (statusPreview) {
+                        let statusClass = '';
+                        let statusText = '';
+                        const lowLimit = 10;
+                        
+                        if (quantity === 0) {
+                            statusClass = 'bg-danger';
+                            statusText = 'Out of Stock';
+                        } else if (quantity <= lowLimit) {
+                            statusClass = 'bg-warning text-dark';
+                            statusText = 'Low Stock';
+                        } else {
+                            statusClass = 'bg-success';
+                            statusText = 'In Stock';
+                        }
+                        
+                        statusPreview.innerHTML = `
+                            <p class="text-muted mb-1" style="font-size: 15px;">Current Status:</p>
+                            <span class="badge ${statusClass} px-3 py-2" style="font-size: 16px;">${statusText}</span>
+                            ${quantity > 0 ? `<span class="badge bg-secondary px-3 py-2 ms-2" style="font-size: 16px;">${quantity} units in stock</span>` : ''}
+                        `;
+                    }
+                });
+            });
+        });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

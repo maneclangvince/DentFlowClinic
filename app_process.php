@@ -3,6 +3,12 @@ include('config.php');
 
 $action = isset($_REQUEST['action']) ? sanitize_input($_REQUEST['action']) : '';
 
+// Add debug for modify_item
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'modify_item') {
+    error_log("=== MODIFY ITEM DEBUG ===");
+    error_log("POST data: " . print_r($_POST, true));
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if ($action === 'patient_signup') {
@@ -333,14 +339,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    // MODIFY ITEM - FIXED
     if ($action === 'modify_item') {
-        $id = intval($_POST['id']);
-        $quantity = intval($_POST['quantity']);
-        $price = floatval($_POST['price']);
+        $id = intval($_POST['id'] ?? 0);
+        $quantity = intval($_POST['quantity'] ?? 0);
+        $price = floatval($_POST['price'] ?? 0);
+        
+        if ($id == 0) {
+            header("Location: receptionist_dashboard.php?error=invalid_id");
+            exit;
+        }
         
         $conn = getDB();
         
-        // Get low_stock_limit from existing item
+        // Get the existing item first to get low_stock_limit
         $stmt = $conn->prepare("SELECT low_stock_limit FROM inventory WHERE id = ?");
         $stmt->bind_param("i", $id);
         $stmt->execute();
@@ -349,7 +361,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $low_limit = $row['low_stock_limit'] ?? 10;
         $stmt->close();
         
-        // Determine status
+        // Determine status based on quantity
         if ($quantity == 0) {
             $status = 'Out of Stock';
         } elseif ($quantity <= $low_limit) {
@@ -361,19 +373,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Update inventory
         $stmt = $conn->prepare("UPDATE inventory SET quantity = ?, price = ?, status = ? WHERE id = ?");
         $stmt->bind_param("idsi", $quantity, $price, $status, $id);
-        $stmt->execute();
-        $stmt->close();
-        $conn->close();
         
-        // Reload session data
-        loadSessionFromDB();
-        
-        header("Location: receptionist_dashboard.php");
-        exit;
+        if ($stmt->execute()) {
+            $stmt->close();
+            $conn->close();
+            // Reload session data
+            loadSessionFromDB();
+            header("Location: receptionist_dashboard.php?success=updated");
+            exit;
+        } else {
+            $error = $stmt->error;
+            $stmt->close();
+            $conn->close();
+            header("Location: receptionist_dashboard.php?error=" . urlencode($error));
+            exit;
+        }
     }
 
     if ($action === 'add_inventory_item') {
         $item = sanitize_input($_POST['item']);
+        
+        if (empty($item)) {
+            header("Location: receptionist_dashboard.php?error=empty_item");
+            exit;
+        }
         
         $conn = getDB();
         $stmt = $conn->prepare("INSERT INTO inventory (item, status, price, quantity, low_stock_limit) VALUES (?, 'Out of Stock', 0.00, 0, 10)");
@@ -385,7 +408,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Reload session data
         loadSessionFromDB();
         
-        header("Location: receptionist_dashboard.php");
+        header("Location: receptionist_dashboard.php?success=added");
         exit;
     }
 }
@@ -557,20 +580,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     if ($action === 'delete_inventory_item') {
-        $id = intval($_GET['id']);
+        $id = intval($_GET['id'] ?? 0);
+        
+        if ($id == 0) {
+            header("Location: receptionist_dashboard.php?error=invalid_id");
+            exit;
+        }
         
         $conn = getDB();
         $stmt = $conn->prepare("DELETE FROM inventory WHERE id = ?");
         $stmt->bind_param("i", $id);
-        $stmt->execute();
-        $stmt->close();
-        $conn->close();
         
-        // Reload session data
-        loadSessionFromDB();
-        
-        header("Location: receptionist_dashboard.php");
-        exit;
+        if ($stmt->execute()) {
+            $stmt->close();
+            $conn->close();
+            // Reload session data
+            loadSessionFromDB();
+            header("Location: receptionist_dashboard.php?success=deleted");
+            exit;
+        } else {
+            $error = $stmt->error;
+            $stmt->close();
+            $conn->close();
+            header("Location: receptionist_dashboard.php?error=" . urlencode($error));
+            exit;
+        }
     }
 
     if ($action === 'clear_chat') {

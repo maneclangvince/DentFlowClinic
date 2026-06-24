@@ -29,8 +29,8 @@ function loadSessionFromDB() {
         $_SESSION['dental_services'][] = $row;
     }
     
-    // Load inventory
-    $result = $conn->query("SELECT * FROM inventory");
+    // Load inventory - THIS IS THE KEY PART
+    $result = $conn->query("SELECT * FROM inventory ORDER BY id ASC");
     $_SESSION['inventory'] = [];
     while ($row = $result->fetch_assoc()) {
         $_SESSION['inventory'][] = $row;
