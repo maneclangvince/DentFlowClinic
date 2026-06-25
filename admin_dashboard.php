@@ -501,7 +501,7 @@ loadSessionFromDB();
             <div class="col-md-6">
                 <div class="card border-0 shadow-sm text-center h-100 rounded-4 stats-card">
                     <div class="card-body p-4 d-flex flex-column justify-content-center">
-                        <span class="stats-label fw-bold mb-2">Total Patients Served Per Day</span>
+                        <span class="stats-label fw-bold mb-2">Total Patients Served Today</span>
                         <?php 
                         date_default_timezone_set('Asia/Manila');
                         $today_counter = 0;
